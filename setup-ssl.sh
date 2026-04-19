@@ -65,6 +65,28 @@ docker run --rm -v "$(pwd)/data/certbot/conf:/etc/letsencrypt" \
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ SSL certificate obtained successfully!${NC}"
 
+    # Add HTTPS server block to nginx config
+    echo -e "${BLUE}🔧 Adding HTTPS configuration...${NC}"
+    cat >> nginx/nginx.conf << 'EOF'
+
+  # HTTPS server
+  server {
+    listen 443 ssl;
+    server_name ragai.buzz www.ragai.buzz;
+
+    # SSL certificates
+    ssl_certificate /etc/letsencrypt/live/ragai.buzz/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/ragai.buzz/privkey.pem;
+
+    # Redirect to HTTPS
+    return 301 https://$host$request_uri;
+  }
+EOF
+
+    # Update HTTP server to redirect to HTTPS
+    sed -i 's/# HTTP server (temporary - will redirect to HTTPS once SSL is ready)/# HTTP to HTTPS redirect/' nginx/nginx.conf
+    sed -i '/server_name ragai.buzz www.ragai.buzz _;/a\    return 301 https://$host$request_uri;' nginx/nginx.conf
+
     # Restart services with SSL
     echo -e "${BLUE}🔄 Restarting services with HTTPS...${NC}"
     docker compose -f docker-compose.prod.yml down
