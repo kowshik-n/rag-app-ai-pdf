@@ -64,13 +64,13 @@ fi
 
 # Check Docker services
 echo -e "${BLUE}🐳 Checking Docker services...${NC}"
-if docker-compose -f docker-compose.prod.yml ps | grep -q "Up"; then
+if docker compose -f docker-compose.prod.yml ps | grep -q "Up"; then
     echo -e "${GREEN}✅ Docker services running${NC}"
 
     # Show service status
     echo ""
     echo -e "${YELLOW}📊 Service Status:${NC}"
-    docker-compose -f docker-compose.prod.yml ps --format "table {{.Name}}\t{{.Status}}"
+    docker compose -f docker-compose.prod.yml ps --format "table {{.Name}}\t{{.Status}}"
 else
     echo -e "${RED}❌ Docker services not running${NC}"
 fi

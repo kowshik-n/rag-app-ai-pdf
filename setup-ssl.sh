@@ -46,7 +46,7 @@ sed -i "s/YOUR_DOMAIN/$DOMAIN/g" nginx/nginx.conf
 
 # Start nginx temporarily for certificate challenge
 echo -e "${BLUE}🌐 Starting nginx for certificate challenge...${NC}"
-docker-compose -f docker-compose.prod.yml up -d web
+docker compose -f docker-compose.prod.yml up -d web
 
 # Wait for nginx to start
 sleep 5
@@ -67,8 +67,8 @@ if [ $? -eq 0 ]; then
 
     # Restart services with SSL
     echo -e "${BLUE}🔄 Restarting services with HTTPS...${NC}"
-    docker-compose -f docker-compose.prod.yml down
-    docker-compose -f docker-compose.prod.yml up -d
+    docker compose -f docker-compose.prod.yml down
+    docker compose -f docker-compose.prod.yml up -d
 
     echo ""
     echo -e "${GREEN}🎉 Setup complete!${NC}"
@@ -81,8 +81,8 @@ if [ $? -eq 0 ]; then
     echo ""
     echo -e "${YELLOW}🔄 Certificate renewal:${NC}"
     echo "Certificates auto-renew. To manually renew:"
-    echo "docker-compose -f docker-compose.prod.yml run --rm certbot renew"
-    echo "docker-compose -f docker-compose.prod.yml restart web"
+    echo "docker compose -f docker-compose.prod.yml run --rm certbot renew"
+    echo "docker compose -f docker-compose.prod.yml restart web"
 
 else
     echo -e "${RED}❌ Failed to obtain SSL certificate${NC}"
