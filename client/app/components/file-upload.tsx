@@ -50,31 +50,31 @@ const FileUploadComponent: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full flex-col justify-between rounded-3xl border border-slate-200/70 bg-slate-950/90 p-6 shadow-2xl shadow-slate-950/10 backdrop-blur-xl text-white">
+    <div className="flex h-full flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 text-slate-950 shadow-sm">
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <div className="rounded-3xl bg-primary p-3 text-white shadow-lg shadow-primary/20">
-            <Upload className="h-6 w-6" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-950">
+            <Upload className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-2xl font-semibold">Upload PDF</h2>
-            <p className="text-sm text-slate-300">Add your PDF and ask questions about its contents.</p>
+            <h2 className="text-xl font-semibold">Upload PDF</h2>
+            <p className="text-sm text-slate-600">Choose a PDF and upload it for question answering.</p>
           </div>
         </div>
 
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-4">
-          <p className="text-sm text-slate-300">Selected file:</p>
-          <p className="mt-2 text-base font-medium text-white">{fileName || 'No file selected'}</p>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-sm text-slate-500">Selected file</p>
+          <p className="mt-2 text-base font-medium text-slate-950">{fileName || 'No file selected'}</p>
         </div>
 
         <div className="space-y-3">
           <Button
-            variant="default"
+            variant="outline"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
             className="w-full"
           >
-            {uploading ? 'Uploading...' : 'Choose PDF'}
+            {uploading ? 'Uploading…' : 'Choose PDF'}
           </Button>
 
           <input
@@ -88,12 +88,12 @@ const FileUploadComponent: React.FC = () => {
       </div>
 
       <div
-        className={`rounded-3xl border px-4 py-3 text-sm ${
+        className={`rounded-xl border px-4 py-3 text-sm ${
           statusType === 'success'
-            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100'
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
             : statusType === 'error'
-            ? 'border-rose-500/30 bg-rose-500/10 text-rose-100'
-            : 'border-slate-700/70 bg-slate-900/80 text-slate-300'
+            ? 'border-rose-200 bg-rose-50 text-rose-700'
+            : 'border-slate-200 bg-slate-50 text-slate-600'
         }`}
       >
         {status}

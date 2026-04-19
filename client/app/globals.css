@@ -113,10 +113,11 @@
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+  html {
+    min-height: 100%;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply min-h-screen bg-slate-50 text-slate-950 antialiased;
+    font-family: var(--font-sans), system-ui, sans-serif;
   }
 }
