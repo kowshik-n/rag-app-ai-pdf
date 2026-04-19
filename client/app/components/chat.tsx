@@ -6,11 +6,12 @@ import * as React from 'react';
 
 interface Doc {
   pageContent?: string;
-  metdata?: {
+  metadata?: {
     loc?: {
       pageNumber?: number;
     };
     source?: string;
+    pageNumber?: number;
   };
 }
 interface IMessage {
@@ -21,6 +22,20 @@ interface IMessage {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 
+const getPageNumber = (doc: Doc): string => {
+  // Try different possible metadata structures
+  const pageNum = doc.metadata?.loc?.pageNumber ||
+                  doc.metadata?.pageNumber;
+
+  if (pageNum !== undefined && pageNum !== null) {
+    // Convert to number and add 1 (PDF pages are 0-indexed)
+    const num = typeof pageNum === 'string' ? parseInt(pageNum, 10) : pageNum;
+    return isNaN(num) ? 'N/A' : (num + 1).toString();
+  }
+
+  return 'N/A';
+};
+
 const ChatComponent: React.FC = () => {
   const [message, setMessage] = React.useState<string>('');
   const [messages, setMessages] = React.useState<IMessage[]>([]);
@@ -30,7 +45,7 @@ const ChatComponent: React.FC = () => {
   const uniqueDocuments = (docs: Doc[]) => {
     const seen = new Set<string>();
     return docs.filter((doc) => {
-      const key = `${doc.pageContent?.slice(0, 120)}|${doc.metdata?.source || ''}`;
+      const key = `${doc.pageContent?.slice(0, 120)}|${doc.metadata?.source || ''}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -130,12 +145,12 @@ const ChatComponent: React.FC = () => {
                                   📄
                                 </div>
                                 <span className="font-medium">
-                                  Page {doc.metdata?.loc?.pageNumber || 'N/A'}
+                                  Page {getPageNumber(doc)}
                                 </span>
                               </div>
-                              {doc.metdata?.source && (
+                              {doc.metadata?.source && (
                                 <div className="text-xs text-slate-400 truncate max-w-[120px]">
-                                  {doc.metdata.source}
+                                  {doc.metadata.source}
                                 </div>
                               )}
                             </div>

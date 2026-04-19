@@ -21,7 +21,19 @@ const worker = new Worker(
 
     // Load the PDF
     const loader = new PDFLoader(data.path);
-    const docs = await loader.load();
+    const rawDocs = await loader.load();
+
+    // Debug: Log metadata structure
+    console.log('PDF loader metadata:', rawDocs.slice(0, 3).map(doc => doc.metadata));
+
+    // Split documents while preserving metadata
+    const textSplitter = new CharacterTextSplitter({
+      chunkSize: 1000,
+      chunkOverlap: 200,
+    });
+    const docs = await textSplitter.splitDocuments(rawDocs);
+
+    console.log('After splitting, first doc metadata:', docs[0]?.metadata);
 
     const embeddings = new OpenAIEmbeddings({
       model: 'text-embedding-3-small',
