@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Worker } from 'bullmq';
 import { OpenAIEmbeddings } from '@langchain/openai';
 import { QdrantVectorStore } from '@langchain/qdrant';
@@ -9,7 +10,7 @@ const worker = new Worker(
   'file-upload-queue',
   async (job) => {
     console.log(`Job:`, job.data);
-    const data = JSON.parse(job.data);
+    const data = job.data;
     /*
     Path: data.path
     read the pdf from path,
@@ -24,14 +25,14 @@ const worker = new Worker(
 
     const embeddings = new OpenAIEmbeddings({
       model: 'text-embedding-3-small',
-      apiKey: '',
+      apiKey: process.env.OPENAI_API_KEY,
     });
 
     const vectorStore = await QdrantVectorStore.fromExistingCollection(
       embeddings,
       {
-        url: 'http://localhost:6333',
-        collectionName: 'langchainjs-testing',
+        url: process.env.QDRANT_URL || 'http://localhost:6333',
+        collectionName: process.env.QDRANT_COLLECTION_NAME || 'langchainjs-testing',
       }
     );
     await vectorStore.addDocuments(docs);
@@ -40,8 +41,8 @@ const worker = new Worker(
   {
     concurrency: 100,
     connection: {
-      host: 'localhost',
-      port: '6379',
+      host: process.env.REDIS_HOST || 'localhost',
+      port: Number(process.env.REDIS_PORT || 6379),
     },
   }
 );

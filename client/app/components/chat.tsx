@@ -19,6 +19,8 @@ interface IMessage {
   documents?: Doc[];
 }
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+
 const ChatComponent: React.FC = () => {
   const [message, setMessage] = React.useState<string>('');
   const [messages, setMessages] = React.useState<IMessage[]>([]);
@@ -27,7 +29,7 @@ const ChatComponent: React.FC = () => {
 
   const handleSendChatMessage = async () => {
     setMessages((prev) => [...prev, { role: 'user', content: message }]);
-    const res = await fetch(`http://localhost:8000/chat?message=${message}`);
+    const res = await fetch(`${API_BASE_URL}/chat?message=${encodeURIComponent(message)}`);
     const data = await res.json();
     setMessages((prev) => [
       ...prev,
