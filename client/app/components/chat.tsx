@@ -27,6 +27,16 @@ const ChatComponent: React.FC = () => {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  const uniqueDocuments = (docs: Doc[]) => {
+    const seen = new Set<string>();
+    return docs.filter((doc) => {
+      const key = `${doc.pageContent?.slice(0, 120)}|${doc.metdata?.source || ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+
   const handleSendChatMessage = async () => {
     if (!message.trim() || loading) return;
 
@@ -49,7 +59,7 @@ const ChatComponent: React.FC = () => {
         {
           role: 'assistant',
           content: data?.message || 'No response received.',
-          documents: data?.docs,
+          documents: Array.isArray(data?.docs) ? uniqueDocuments(data.docs) : [],
         },
       ]);
     } catch (err) {
@@ -68,16 +78,16 @@ const ChatComponent: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full flex-col gap-6 p-4 md:p-6">
-      <div className="rounded-3xl border border-slate-200/70 bg-white/80 p-5 shadow-xl shadow-slate-900/5 backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-950/80">
+    <div className="flex h-full flex-col gap-4 p-4 md:p-6">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="mb-4 space-y-2">
-          <h2 className="text-2xl font-semibold">Chat with your PDF</h2>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            Ask questions and see the document context in one place.
+          <h2 className="text-xl font-semibold">Chat</h2>
+          <p className="text-sm text-slate-600">
+            Ask a question about your uploaded PDF.
           </p>
         </div>
 
-        <div className="mb-4 max-h-[60vh] overflow-y-auto space-y-4 px-1 py-2">
+        <div className="mb-4 max-h-[60vh] overflow-y-auto space-y-4">
           {messages.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300/80 bg-slate-50 p-6 text-center text-slate-500 dark:border-slate-700/80 dark:bg-slate-900/60 dark:text-slate-400">
               Start by asking a question about the uploaded PDF.
@@ -89,23 +99,29 @@ const ChatComponent: React.FC = () => {
                 className={`flex ${messageObj.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-3xl px-4 py-3 shadow-sm ${
+                  className={`max-w-[80%] rounded-2xl border px-4 py-3 ${
                     messageObj.role === 'user'
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100'
+                      ? 'border-slate-300 bg-slate-100 text-slate-900'
+                      : 'border-slate-200 bg-white text-slate-950'
                   }`}
                 >
-                  <div className="text-sm leading-7">
+                  <div className="text-sm leading-7 whitespace-pre-wrap">
                     {messageObj.content}
                   </div>
+
                   {messageObj.documents && messageObj.documents.length > 0 ? (
-                    <div className="mt-3 space-y-2 rounded-2xl border border-slate-200/80 bg-slate-50 p-3 text-xs text-slate-600 dark:border-slate-700/80 dark:bg-slate-900/80 dark:text-slate-300">
+                    <div className="mt-3 space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
                       <div className="mb-2 font-medium">Context sources</div>
                       {messageObj.documents.map((doc, docIndex) => (
-                        <div key={docIndex} className="rounded-xl bg-white/80 p-2 shadow-sm dark:bg-slate-950/70">
-                          <div>{doc.pageContent || 'No document content available.'}</div>
+                        <div key={docIndex} className="rounded-xl border border-slate-200 bg-white p-3">
+                          <p className="text-sm leading-6 text-slate-800">
+                            {doc.pageContent?.slice(0, 220) || 'No document text available.'}
+                            {doc.pageContent && doc.pageContent.length > 220 ? '...' : ''}
+                          </p>
                           {doc.metdata?.source ? (
-                            <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">Source: {doc.metdata.source}</div>
+                            <p className="mt-2 text-[11px] uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                              Source: {doc.metdata.source}
+                            </p>
                           ) : null}
                         </div>
                       ))}
@@ -124,16 +140,16 @@ const ChatComponent: React.FC = () => {
         ) : null}
       </div>
 
-      <div className="sticky bottom-0 rounded-3xl border border-slate-200/70 bg-white/90 p-4 shadow-xl shadow-slate-900/5 backdrop-blur-xl dark:border-slate-700/80 dark:bg-slate-950/90">
+      <div className="sticky bottom-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row">
           <Input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type your message here"
+            placeholder="Type a question..."
             disabled={loading}
           />
-          <Button onClick={handleSendChatMessage} disabled={!message.trim() || loading} className="w-full md:w-auto">
-            {loading ? 'Sending...' : 'Send'}
+          <Button variant="outline" onClick={handleSendChatMessage} disabled={!message.trim() || loading} className="w-full md:w-auto">
+            {loading ? 'Sending…' : 'Send'}
           </Button>
         </div>
       </div>
