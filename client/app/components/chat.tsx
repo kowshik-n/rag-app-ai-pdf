@@ -19,7 +19,7 @@ interface IMessage {
   documents?: Doc[];
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 
 const ChatComponent: React.FC = () => {
   const [message, setMessage] = React.useState<string>('');
