@@ -89,8 +89,14 @@ const ChatComponent: React.FC = () => {
 
         <div className="mb-4 max-h-[60vh] overflow-y-auto space-y-4">
           {messages.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-300/80 bg-slate-50 p-6 text-center text-slate-500 dark:border-slate-700/80 dark:bg-slate-900/60 dark:text-slate-400">
-              Start by asking a question about the uploaded PDF.
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/50 p-8 text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white">
+                💬
+              </div>
+              <h3 className="mb-2 text-sm font-medium text-slate-900">Start a conversation</h3>
+              <p className="text-sm text-slate-500">
+                Upload a PDF first, then ask questions about its content. The AI will reference specific pages from your document.
+              </p>
             </div>
           ) : (
             messages.map((messageObj, index) => (
@@ -110,21 +116,36 @@ const ChatComponent: React.FC = () => {
                   </div>
 
                   {messageObj.documents && messageObj.documents.length > 0 ? (
-                    <div className="mt-3 space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-                      <div className="mb-2 font-medium">Context sources</div>
-                      {messageObj.documents.map((doc, docIndex) => (
-                        <div key={docIndex} className="rounded-xl border border-slate-200 bg-white p-3">
-                          <p className="text-sm leading-6 text-slate-800">
-                            {doc.pageContent?.slice(0, 220) || 'No document text available.'}
-                            {doc.pageContent && doc.pageContent.length > 220 ? '...' : ''}
-                          </p>
-                          {doc.metdata?.source ? (
-                            <p className="mt-2 text-[11px] uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                              Source: {doc.metdata.source}
+                    <div className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                      <div className="flex items-center gap-2 text-xs font-medium text-slate-700">
+                        <div className="h-1.5 w-1.5 rounded-full bg-slate-400"></div>
+                        Context Sources ({messageObj.documents.length})
+                      </div>
+                      <div className="space-y-3">
+                        {messageObj.documents.map((doc, docIndex) => (
+                          <div key={docIndex} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div className="flex items-center gap-2 text-xs text-slate-500">
+                                <div className="flex h-5 w-5 items-center justify-center rounded border border-slate-200 bg-slate-50">
+                                  📄
+                                </div>
+                                <span className="font-medium">
+                                  Page {doc.metdata?.loc?.pageNumber || 'N/A'}
+                                </span>
+                              </div>
+                              {doc.metdata?.source && (
+                                <div className="text-xs text-slate-400 truncate max-w-[120px]">
+                                  {doc.metdata.source}
+                                </div>
+                              )}
+                            </div>
+                            <p className="text-sm leading-6 text-slate-700">
+                              {doc.pageContent?.slice(0, 300) || 'No document text available.'}
+                              {doc.pageContent && doc.pageContent.length > 300 ? '...' : ''}
                             </p>
-                          ) : null}
-                        </div>
-                      ))}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ) : null}
                 </div>
@@ -145,7 +166,7 @@ const ChatComponent: React.FC = () => {
           <Input
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Type a question..."
+            placeholder="Ask about the PDF content..."
             disabled={loading}
           />
           <Button variant="outline" onClick={handleSendChatMessage} disabled={!message.trim() || loading} className="w-full md:w-auto">
