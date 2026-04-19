@@ -77,9 +77,6 @@ app.get('/chat', async (req, res) => {
     });
     const result = await ret.invoke(userQuery);
 
-    // Debug: Log metadata structure
-    console.log('Retrieved documents metadata:', result.map(doc => doc.metadata));
-
     const SYSTEM_PROMPT = `
   You are a helpful AI assistant who answers the user query based on the available context from the PDF file.
   Context:

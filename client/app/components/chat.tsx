@@ -28,9 +28,9 @@ const getPageNumber = (doc: Doc): string => {
                   doc.metadata?.pageNumber;
 
   if (pageNum !== undefined && pageNum !== null) {
-    // Convert to number and add 1 (PDF pages are 0-indexed)
+    // PDF pages are already 1-indexed, no need to add 1
     const num = typeof pageNum === 'string' ? parseInt(pageNum, 10) : pageNum;
-    return isNaN(num) ? 'N/A' : (num + 1).toString();
+    return isNaN(num) ? 'N/A' : num.toString();
   }
 
   return 'N/A';
