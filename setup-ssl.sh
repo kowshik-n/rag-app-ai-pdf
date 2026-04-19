@@ -29,6 +29,28 @@ echo -e "${YELLOW}📋 Domain: $DOMAIN${NC}"
 echo -e "${YELLOW}📧 Email: $EMAIL${NC}"
 echo ""
 
+# Check DNS resolution
+echo -e "${BLUE}🔍 Checking DNS resolution...${NC}"
+SERVER_IP=$(curl -s ifconfig.me)
+DOMAIN_IP=$(dig +short $DOMAIN | tail -1)
+
+if [ -z "$DOMAIN_IP" ]; then
+    echo -e "${RED}❌ Error: DNS not configured for $DOMAIN${NC}"
+    echo "Please add an A record in your DNS settings:"
+    echo "  $DOMAIN -> $SERVER_IP"
+    exit 1
+fi
+
+if [ "$DOMAIN_IP" != "$SERVER_IP" ]; then
+    echo -e "${RED}❌ Error: DNS mismatch${NC}"
+    echo "Domain $DOMAIN resolves to $DOMAIN_IP but server is at $SERVER_IP"
+    echo "Please update your DNS A record to point to $SERVER_IP"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ DNS configured correctly${NC}"
+echo ""
+
 # Check if Docker is running
 if ! docker info > /dev/null 2>&1; then
     echo -e "${RED}❌ Error: Docker is not running${NC}"
@@ -60,26 +82,76 @@ docker run --rm -v "$(pwd)/data/certbot/conf:/etc/letsencrypt" \
     --email "$EMAIL" \
     --agree-tos \
     --no-eff-email \
-    -d "$DOMAIN"
+    -d "$DOMAIN" \
+    -d "www.$DOMAIN"
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ SSL certificate obtained successfully!${NC}"
 
     # Add HTTPS server block to nginx config
     echo -e "${BLUE}🔧 Adding HTTPS configuration...${NC}"
-    cat >> nginx/nginx.conf << 'EOF'
+    cat >> nginx/nginx.conf << EOF
 
   # HTTPS server
   server {
     listen 443 ssl;
-    server_name ragai.buzz www.ragai.buzz;
+    server_name $DOMAIN www.$DOMAIN;
 
     # SSL certificates
-    ssl_certificate /etc/letsencrypt/live/ragai.buzz/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/ragai.buzz/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
 
-    # Redirect to HTTPS
-    return 301 https://$host$request_uri;
+    client_max_body_size 50m;
+    client_body_timeout 120s;
+
+    # API routes
+    location /upload/pdf {
+      proxy_pass http://server;
+      proxy_set_header Host \$host;
+      proxy_set_header X-Real-IP \$remote_addr;
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto \$scheme;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "";
+      proxy_connect_timeout 60s;
+      proxy_send_timeout 120s;
+      proxy_read_timeout 120s;
+      proxy_buffering off;
+    }
+
+    location /chat {
+      proxy_pass http://server;
+      proxy_set_header Host \$host;
+      proxy_set_header X-Real-IP \$remote_addr;
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto \$scheme;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "";
+      proxy_connect_timeout 60s;
+      proxy_send_timeout 120s;
+      proxy_read_timeout 120s;
+      proxy_buffering off;
+    }
+
+    # Frontend routes
+    location / {
+      proxy_pass http://client;
+      proxy_set_header Host \$host;
+      proxy_set_header X-Real-IP \$remote_addr;
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto \$scheme;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "";
+      proxy_set_header Upgrade \$http_upgrade;
+      proxy_set_header Connection "upgrade";
+    }
+
+    # Static files caching
+    location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg)\$ {
+      proxy_pass http://client;
+      expires 1y;
+      add_header Cache-Control "public, immutable";
+    }
   }
 EOF
 
@@ -98,6 +170,14 @@ EOF
     echo ""
     echo -e "${YELLOW}📝 Next steps:${NC}"
     echo "1. Point your domain's DNS A record to your server's IP: $(curl -s ifconfig.me)"
+    echo "2. Set up automatic certificate renewal:"
+    echo "   crontab -e"
+    echo "   Add: 0 12 * * * /usr/bin/docker run --rm -v $(pwd)/data/certbot/conf:/etc/letsencrypt -v $(pwd)/data/certbot/www:/var/www/certbot certbot/certbot:latest renew --webroot --webroot-path=/var/www/certbot && docker compose -f docker-compose.prod.yml restart web"
+else
+    echo -e "${RED}❌ Failed to obtain SSL certificate${NC}"
+    echo "Please check your DNS configuration and try again."
+    exit 1
+fi
     echo "2. Wait for DNS propagation (can take up to 24 hours)"
     echo "3. Test your site: https://$DOMAIN"
     echo ""
