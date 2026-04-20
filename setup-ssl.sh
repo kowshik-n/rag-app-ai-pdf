@@ -32,7 +32,8 @@ echo ""
 # Check DNS resolution
 echo -e "${BLUE}🔍 Checking DNS resolution...${NC}"
 SERVER_IP=$(curl -s ifconfig.me)
-DOMAIN_IP=$(dig +short $DOMAIN | tail -1)
+# Use external DNS (Google) to avoid local cache issues
+DOMAIN_IP=$(dig +short $DOMAIN @8.8.8.8 | tail -1)
 
 if [ -z "$DOMAIN_IP" ]; then
     echo -e "${RED}❌ Error: DNS not configured for $DOMAIN${NC}"
