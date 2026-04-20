@@ -157,7 +157,7 @@ EOF
 
     # Update HTTP server to redirect to HTTPS
     sed -i 's/# HTTP server (temporary - will redirect to HTTPS once SSL is ready)/# HTTP to HTTPS redirect/' nginx/nginx.conf
-    sed -i '/server_name ragai.buzz www.ragai.buzz _;/a\    return 301 https://$host$request_uri;' nginx/nginx.conf
+    sed -i "/server_name $DOMAIN www.$DOMAIN;/a\    return 301 https://\$host\$request_uri;" nginx/nginx.conf
 
     # Restart services with SSL
     echo -e "${BLUE}🔄 Restarting services with HTTPS...${NC}"
