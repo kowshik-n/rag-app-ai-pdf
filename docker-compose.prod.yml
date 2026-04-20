@@ -2,22 +2,12 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     volumes:
       - redis_data:/data
 
   qdrant:
     image: qdrant/qdrant:latest
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
     volumes:
       - qdrant_data:/qdrant/storage
 
@@ -32,16 +22,9 @@ services:
       - QDRANT_COLLECTION_NAME=${QDRANT_COLLECTION_NAME}
       - PORT=8000
     depends_on:
-      redis:
-        condition: service_healthy
-      qdrant:
-        condition: service_healthy
+      - redis
+      - qdrant
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
     volumes:
       - ./server/uploads:/app/uploads
 
@@ -56,10 +39,8 @@ services:
       - REDIS_PORT=6379
       - QDRANT_COLLECTION_NAME=${QDRANT_COLLECTION_NAME}
     depends_on:
-      redis:
-        condition: service_healthy
-      qdrant:
-        condition: service_healthy
+      - redis
+      - qdrant
     restart: unless-stopped
     volumes:
       - ./server/uploads:/app/uploads
@@ -68,8 +49,7 @@ services:
     build:
       context: ./client
     depends_on:
-      server:
-        condition: service_healthy
+      - server
     restart: unless-stopped
 
   web:
@@ -79,17 +59,9 @@ services:
       - server
     ports:
       - '80:80'
-      - '443:443'
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./data/certbot/conf:/etc/letsencrypt:ro
-      - ./data/certbot/www:/var/www/certbot:ro
 
 volumes:
   qdrant_data:
