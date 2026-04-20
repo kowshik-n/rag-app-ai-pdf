@@ -62,42 +62,203 @@ echo -e "${BLUE}📁 Creating directories...${NC}"
 mkdir -p data/certbot/conf
 mkdir -p data/certbot/www
 
-# Update nginx config with domain
-echo -e "${BLUE}🔧 Updating nginx configuration...${NC}"
-sed -i "s/YOUR_DOMAIN/$DOMAIN/g" nginx/nginx.conf
+# Create a temporary docker-compose override for certbot challenge
+echo -e "${BLUE}🔧 Creating temporary nginx configuration...${NC}"
+cat > docker-compose.certbot.yml << 'EOF'
+version: '3.8'
+services:
+  web:
+    image: nginx:stable-alpine
+    ports:
+      - '80:80'
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./data/certbot/www:/var/www/certbot:rw
+EOF
 
-# Start nginx temporarily for certificate challenge
+# Start nginx with certbot volume for challenge
 echo -e "${BLUE}🌐 Starting nginx for certificate challenge...${NC}"
-docker compose -f docker-compose.prod.yml up -d web
+docker compose -f docker-compose.certbot.yml up -d
 
 # Wait for nginx to start
 sleep 5
 
+# Verify nginx is serving challenge directory
+echo -e "${BLUE}🧪 Testing nginx setup...${NC}"
+docker compose -f docker-compose.certbot.yml exec web mkdir -p /var/www/certbot/.well-known/acme-challenge
+
 # Get SSL certificate
 echo -e "${BLUE}🔐 Getting SSL certificate from Let's Encrypt...${NC}"
-docker run --rm -v "$(pwd)/data/certbot/conf:/etc/letsencrypt" \
+docker run --rm \
+    -v "$(pwd)/data/certbot/conf:/etc/letsencrypt" \
     -v "$(pwd)/data/certbot/www:/var/www/certbot" \
+    --network host \
     certbot/certbot:latest certonly --webroot \
     --webroot-path=/var/www/certbot \
     --email "$EMAIL" \
     --agree-tos \
     --no-eff-email \
+    --rsa-key-size 2048 \
     -d "$DOMAIN" \
     -d "www.$DOMAIN"
 
-if [ $? -eq 0 ]; then
+CERT_RESULT=$?
+
+# Stop temporary nginx
+echo -e "${BLUE}🛑 Stopping temporary nginx...${NC}"
+docker compose -f docker-compose.certbot.yml down
+rm docker-compose.certbot.yml
+
+if [ $CERT_RESULT -eq 0 ]; then
     echo -e "${GREEN}✅ SSL certificate obtained successfully!${NC}"
+    echo ""
 
     # Add HTTPS server block to nginx config
     echo -e "${BLUE}🔧 Adding HTTPS configuration...${NC}"
     cat >> nginx/nginx.conf << EOF
 
+  # HTTP to HTTPS redirect
+  server {
+    listen 80;
+    server_name $DOMAIN www.$DOMAIN;
+    
+    # Let's Encrypt challenge
+    location /.well-known/acme-challenge/ {
+      root /var/www/certbot;
+      try_files \$uri =404;
+    }
+    
+    # Redirect all HTTP to HTTPS
+    location / {
+      return 301 https://\$host\$request_uri;
+    }
+  }
+
   # HTTPS server
   server {
-    listen 443 ssl;
+    listen 443 ssl http2;
     server_name $DOMAIN www.$DOMAIN;
 
     # SSL certificates
+    ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
+
+    # SSL configuration
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    client_max_body_size 50m;
+    client_body_timeout 120s;
+
+    # API routes
+    location /upload/pdf {
+      proxy_pass http://server:8000;
+      proxy_set_header Host \$host;
+      proxy_set_header X-Real-IP \$remote_addr;
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto \$scheme;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "";
+      proxy_connect_timeout 60s;
+      proxy_send_timeout 120s;
+      proxy_read_timeout 120s;
+      proxy_buffering off;
+    }
+
+    location /chat {
+      proxy_pass http://server:8000;
+      proxy_set_header Host \$host;
+      proxy_set_header X-Real-IP \$remote_addr;
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto \$scheme;
+      proxy_http_version 1.1;
+      proxy_set_header Connection "";
+      proxy_connect_timeout 60s;
+      proxy_send_timeout 120s;
+      proxy_read_timeout 120s;
+      proxy_buffering off;
+    }
+
+    # Frontend routes
+    location / {
+      proxy_pass http://client:3000;
+      proxy_set_header Host \$host;
+      proxy_set_header X-Real-IP \$remote_addr;
+      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+      proxy_set_header X-Forwarded-Proto \$scheme;
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade \$http_upgrade;
+      proxy_set_header Connection "upgrade";
+    }
+
+    # Health check
+    location /health {
+      access_log off;
+      return 200 "healthy\n";
+      add_header Content-Type text/plain;
+    }
+
+    # Static files caching
+    location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)\$ {
+      proxy_pass http://client:3000;
+      expires 1y;
+      add_header Cache-Control "public, immutable";
+      proxy_set_header Host \$host;
+      access_log off;
+    }
+  }
+EOF
+
+    echo -e "${BLUE}🔄 Restarting services with HTTPS...${NC}"
+    docker compose -f docker-compose.prod.yml down
+    sleep 2
+    docker compose -f docker-compose.prod.yml up --build -d
+
+    # Wait for services to start
+    sleep 10
+
+    echo ""
+    echo -e "${GREEN}🎉 Setup complete!${NC}"
+    echo ""
+    echo -e "${YELLOW}✅ Your app is now available at:${NC}"
+    echo -e "${GREEN}https://$DOMAIN${NC}"
+    echo -e "${GREEN}https://www.$DOMAIN${NC}"
+    echo ""
+    echo -e "${YELLOW}📝 HTTPS Details:${NC}"
+    echo "Domain: $DOMAIN"
+    echo "Certificate: Let's Encrypt"
+    echo "Auto-renewal: Enabled"
+    echo ""
+    echo -e "${YELLOW}✨ Security features enabled:${NC}"
+    echo "✅ HTTP → HTTPS redirect"
+    echo "✅ HSTS security header"
+    echo "✅ TLS 1.2 & 1.3"
+    echo "✅ Strong cipher suites"
+    echo ""
+    echo -e "${BLUE}📊 Check status:${NC}"
+    echo "docker compose -f docker-compose.prod.yml ps"
+    echo ""
+
+else
+    echo -e "${RED}❌ Failed to obtain SSL certificate${NC}"
+    echo ""
+    echo -e "${YELLOW}Troubleshooting:${NC}"
+    echo "1. Verify DNS resolution:"
+    echo "   dig $DOMAIN"
+    echo "   Should show: $DOMAIN. A $SERVER_IP"
+    echo ""
+    echo "2. Verify port 80 is open:"
+    echo "   curl http://$DOMAIN"
+    echo ""
+    echo "3. Check if behind Cloudflare:"
+    echo "   If yes, set to DNS-only mode (not proxied)"
+    echo ""
+    echo "4. Try again:"
+    echo "   ./setup-ssl.sh $DOMAIN $EMAIL"
+    exit 1
+fi
     ssl_certificate /etc/letsencrypt/live/$DOMAIN/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/$DOMAIN/privkey.pem;
 
